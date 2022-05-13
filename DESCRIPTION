@@ -1,0 +1,22 @@
+Package: cbl
+Title: Causal discovery under a confounder blanket
+Version: 0.0.0.9000
+Authors@R: 
+    person("David", "Watson", email = "david.s.watson11@gmail.com", 
+    role = c("aut", "cre"), comment = c(ORCID = "0000-0001-9632-2159"))
+Description: This package provides methods for learning ancestral relationships
+  among a set of foreground variables X based on signals from a set of causally
+  antecedent background variables Z. The confounder blanket learner (CBL) uses
+  regression methods with feature selection to effectively perform many 
+  conditional independence tests at once, with complementary pairs stability
+  selection to guarantee finite sample error control. 
+Imports:
+  data.table,
+  dplyr,
+  foreach,
+  glmnet,
+  lightgbm
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
