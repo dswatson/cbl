@@ -87,7 +87,6 @@ lb_fn <- function(df, B) {
 #' @param B Number of complementary pairs to draw for stability selection.
 #' 
 #' @import data.table
-#' @import dplyr
 
 ss_fn <- function(df, lb, order, rule, B) {
   # Find the right rate
@@ -105,12 +104,9 @@ ss_fn <- function(df, lb, order, rule, B) {
   ub <- minD(theta, B) * sum(r <= theta)
   tau <- seq_len(2 * B) / (2 * B)
   # Do any features exceed the upper bound?
-  dat <- data.frame(tau, err_bound = ub) %>%
-    filter(tau > lb) %>%
-    rowwise() %>%
-    mutate(detected = sum(r >= tau)) %>% 
-    ungroup(.) %>%
-    mutate(surplus = ifelse(detected > err_bound, 1, 0))
+  dat <- data.table(tau, err_bound = ub)[tau > lb]
+  dat[, detected := sapply(seq_len(nrow(dat)), function(i) sum(r >= dat$tau[i]))]
+  dat[, surplus := ifelse(detected > err_bound, 1, 0)]
   # Export
   out <- data.table(
     'order' = order, 'rule' = rule, 
@@ -118,3 +114,5 @@ ss_fn <- function(df, lb, order, rule, B) {
   )
   return(out)
 }
+
+
