@@ -2,7 +2,6 @@
 
 export(cbl)
 import(data.table)
-import(dplyr)
 import(foreach)
 import(glmnet)
 import(lightgbm)

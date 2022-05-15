@@ -12,7 +12,6 @@ Description: This package provides methods for learning ancestral relationships
   selection to guarantee finite sample error control. 
 Imports:
   data.table,
-  dplyr,
   foreach,
   glmnet,
   lightgbm
