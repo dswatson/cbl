@@ -107,10 +107,26 @@ cbl <- function(
       stop('s must provide a bit vector of length equal to the number of input features.')
     }
   }
+  if (nrow(x) != nrow(z)) {
+    stop('x and z must be the same sample size.')
+  }
+  if (is.data.table(z)) {
+    z <- as.data.frame(z)
+  }
+  if (is.data.table(x)) {
+    x <- as.data.frame(x)
+  }
+  if (is.null(maxiter)) {
+    maxiter <- Inf 
+  }
+  n <- nrow(x)
+  d_x <- ncol(x)
+  d_z <- ncol(z)
   
   # Initialize
   adj_list <- list(
-    matrix(NA_real_, nrow = d_x, ncol = d_x, dimnames = list(xlabs, xlabs))
+    matrix(NA_real_, nrow = d_x, ncol = d_x, 
+           dimnames = list(colnames(x), colnames(x)))
   )
   converged <- FALSE
   iter <- 0
