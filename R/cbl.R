@@ -38,6 +38,10 @@
 #' complementary pairs stability selection (Shah & Samworth, 2013), which bounds
 #' the probability of errors of commission. 
 #' 
+#' If \code{x} or \code{z} are data frames, they will be converted to matrix
+#' format via \code{model.matrix} with a warning. This means categorical data 
+#' will be recoded as dummy variables. 
+#' 
 #' @return 
 #' A square, lower triangular ancestrality matrix. Call this matrix \code{m}. 
 #' If CBL infers that $X_i \prec X_j$, then \code{m[j, i] = 1}. If CBL infers 
@@ -93,11 +97,6 @@ cbl <- function(
   ...
 ) {
   # Prelimz
-  if (B < 50) {
-    warning('Results may be unstable with B < 50.')
-  } else if (B > 50) {
-    warning('The r-concavity assumption may not hold for B > 50.')
-  }
   if (gamma < 0 | gamma > 1) {
     stop('gamma must be on [0,1].')
   }
@@ -110,11 +109,18 @@ cbl <- function(
   if (nrow(x) != nrow(z)) {
     stop('x and z must be the same sample size.')
   }
-  if (is.data.table(z)) {
-    z <- as.data.frame(z)
+  if (is.data.frame(x)) {
+    warning('Converting x to matrix format.')
+    x <- model.matrix(~., x)[, -1]
   }
-  if (is.data.table(x)) {
-    x <- as.data.frame(x)
+  if (is.data.frame(z)) {
+    warning('Converting z to matrix format.')
+    z <- model.matrix(~., z)[, -1]
+  }
+  if (B < 50) {
+    warning('Results may be unstable with B < 50.')
+  } else if (B > 50) {
+    warning('The r-concavity assumption may not hold for B > 50.')
   }
   if (is.null(maxiter)) {
     maxiter <- Inf 
