@@ -6,7 +6,15 @@
 \usage{
 r.TailProbs(eta, B, r)
 }
+\arguments{
+\item{eta}{Upper bound on the expectation of the r-concave random variable.}
+
+\item{B}{Number of complementary pairs for stability selection.}
+
+\item{r}{Of r-concavity fame.}
+}
 \description{
-These functions are taken verbatim from Rajen Shah's personal website:
+Compute the tail probability of an r-concave random variable. Code taken
+verbatim from Rajen Shah's personal website:
 \url{http://www.statslab.cam.ac.uk/~rds37/papers/r_concave_tail.R}.
 }
