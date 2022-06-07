@@ -1,7 +1,12 @@
 #' CPSS utility functions
-#'
-#' These functions are taken verbatim from Rajen Shah's personal website:
+#' 
+#' Compute the tail probability of an r-concave random variable. Code taken
+#' verbatim from Rajen Shah's personal website:
 #' \url{http://www.statslab.cam.ac.uk/~rds37/papers/r_concave_tail.R}.
+#' 
+#' @param eta Upper bound on the expectation of the r-concave random variable.
+#' @param B Number of complementary pairs for stability selection. 
+#' @param r Of r-concavity fame.
 #'
 #' @importFrom stats optimize uniroot
 
@@ -48,6 +53,17 @@ r.TailProbs <- function(eta, B, r) {
   return(output)
 }
 
+#' CPSS upper bound
+#' 
+#' Compute the min-D factor of Shah & Samworth's Eq. 8 (2013). Code taken
+#' verbatim from Rajen Shah's personal website:
+#' \url{http://www.statslab.cam.ac.uk/~rds37/papers/r_concave_tail.R}.
+#' 
+#' @param theta Low rate threshold.
+#' @param B Number of complementary pairs for stability selection. 
+#' @param r Of r-concavity fame.
+
 minD <- function(theta, B, r = c(-1/2, -1/4)) {
   pmin(c(rep(1, B), r.TailProbs(theta^2, B, r[1])), r.TailProbs(theta, 2*B, r[2]))
 }
+
