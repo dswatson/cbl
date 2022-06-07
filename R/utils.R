@@ -22,10 +22,10 @@ l0 <- function(x, y, s, params, ...) {
     tst <- seq_len(n)[-trn]
     if (s == 'lasso') {
       fit <- glmnet(x[trn, ], y[trn], intercept = FALSE, ...)
-      y_hat <- predict(fit, newx = x[tst, ], s = fit$lambda)
+      y_hat <- predict.glmnet(fit, newx = x[tst, ], s = fit$lambda)
       eps <- y_hat - y[tst]
       mse <- colMeans(eps^2)
-      betas <- coef(fit, s = fit$lambda)[-1, which.min(mse)]
+      betas <- coef.glmnet(fit, s = fit$lambda)[-1, which.min(mse)]
       out <- ifelse(betas == 0, 0, 1)
     } else if (s == 'boost') {
       d_trn <- lgb.Dataset(x[trn, ], label = y[trn])
@@ -101,6 +101,9 @@ sub_loop <- function(b, i, j, x, z_t, s, params, ...) {
 #' @import foreach
 
 lb_fn <- function(df, B) {
+  # Nullify 
+  dji <- drji <- aji <- arji <- dij <- drij <- aij <- arij <- tau <- tt <-
+    int_err <- ext_err <- NULL
   # Loop through thresholds
   lies <- function(tau) {
     # Internal consistency
@@ -140,6 +143,8 @@ lb_fn <- function(df, B) {
 #' @import data.table
 
 ss_fn <- function(df, lb, order, rule, B) {
+  # Nullify
+  drji <- arji <- drij <- arij <- detected <- surplus <- err_bound <- NULL
   # Find the right rate
   if (order == 'ji' & rule == 'R1') {
     r <- df[, drji]

@@ -132,7 +132,9 @@ cbl <- function(
   n <- nrow(x)
   d_x <- ncol(x)
   d_z <- ncol(z)
-  
+  # Nullify for visible bindings
+  disr <- dis <- drji <- d_ji <- arji <- a_ji <- drij <- d_ij <- arij <- a_ij <- 
+    bb <- oo <- rr <- rule <- decision <- NULL
   # Initialize
   adj_list <- list(
     matrix(NA_real_, nrow = d_x, ncol = d_x, 
@@ -202,8 +204,8 @@ cbl <- function(
         } 
       }
     }
+    # Iterate, check for convergence
     iter <- iter + 1
-    # Check for convergence
     if (identical(adj0, adj1)) {
       converged <- TRUE
     } else {
@@ -217,4 +219,4 @@ cbl <- function(
   return(adj1)
 }
 
-
+if(getRversion() >= '2.15.1')  utils::globalVariables('.')
