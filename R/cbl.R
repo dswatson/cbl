@@ -77,7 +77,9 @@
 #'   out <- ifelse(colnames(x) %in% keep, 1, 0)
 #'   return(out)
 #' }
+#' \dontrun{
 #' cbl(x, z, s = s_new)
+#' }
 #' 
 #' @export 
 #' @import data.table
