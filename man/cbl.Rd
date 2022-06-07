@@ -47,9 +47,10 @@ register backend beforehand, e.g. via \code{doMC}. See example below.}
 }
 \value{
 A square, lower triangular ancestrality matrix. Call this matrix \code{m}.
-If CBL infers that $X_i \prec X_j$, then \code{m[j, i] = 1}. If CBL infers
-that $X_i \preceq X_j$, then \code{m[j, i] = 0.5}. If CBL infers that
-$X_i \sim X_j$, then \code{m[j, i] = 0}. Otherwise, \code{m[j, i] = NA}.
+If CBL infers that \eqn{X_i \prec X_j}, then \code{m[j, i] = 1}. If CBL
+infers that \eqn{X_i \preceq X_j}, then \code{m[j, i] = 0.5}. If CBL infers
+that \eqn{X_i \sim X_j}, then \code{m[j, i] = 0}. Otherwise,
+\code{m[j, i] = NA}.
 }
 \description{
 This function performs the confounder blanket learner (CBL) algorithm for
@@ -69,22 +70,23 @@ includes support for sparse linear models (\code{s = "lasso"}) and gradient
 boosting machines (\code{s = "boost"}). For statistical inference, CBL uses
 complementary pairs stability selection (Shah & Samworth, 2013), which bounds
 the probability of errors of commission.
-
-If \code{x} or \code{z} are data frames, they will be converted to matrix
-format via \code{model.matrix} with a warning. This means categorical data
-will be recoded as dummy variables.
 }
 \examples{
 # Load data
-data(cbl_sim)
+data(bipartite)
+x <- bipartite$x
+z <- bipartite$z
+
+# Set seed
+set.seed(42)
 
 # Run CBL
-m <- cbl(x, z)
+cbl(x, z)
 
 # Run CBL in parallel
 require(doMC)
 registerDoMC(2)
-m <- cbl(x, z, parallel = TRUE)
+cbl(x, z, parallel = TRUE)
 
 # With user-supplied feature selection subroutine
 s_new <- function(x, y) {
@@ -97,12 +99,13 @@ s_new <- function(x, y) {
   out <- ifelse(colnames(x) \%in\% keep, 1, 0)
   return(out)
 }
-m <- cbl(x, z, s = s_new)
+cbl(x, z, s = s_new)
 
 }
 \references{
 Watson, D.S. & Silva, R. (2022). Causal discovery under a confounder blanket.
-\emph{arXiv} preprint, 2205.05715.
+To appear in \emph{Proceedings of the 38th Conference on Uncertainty in
+Artificial Intelligence}. \emph{arXiv} preprint, 2205.05715.
 
 Shah, R. & Samworth, R. (2013). Variable selection with error control:
 Another look at stability selection. \emph{J. R. Statist. Soc. B},
