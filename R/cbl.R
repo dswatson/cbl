@@ -20,7 +20,7 @@
 #' @param params Optional list to pass to \code{lgb.train} if \code{s = "boost"}.
 #'   See \code{lightgbm::\link[lightgbm]{lgb.train}}.
 #' @param parallel Compute stability selection subroutine in parallel? Must 
-#'   register backend beforehand, e.g. via \code{doMC}. See example below.
+#'   register backend beforehand, e.g. via \code{doMC}. 
 #' @param ... Extra parameters to be passed to the feature selection subroutine.
 #'   
 #' @details 
@@ -65,13 +65,6 @@
 #' 
 #' # Run CBL
 #' cbl(x, z)
-#' 
-#' # Run CBL in parallel
-#' \dontrun{
-#' require(doMC)
-#' registerDoMC(2)
-#' cbl(x, z, parallel = TRUE)
-#' }
 #' 
 #' # With user-supplied feature selection subroutine
 #' s_new <- function(x, y) {
