@@ -3,8 +3,10 @@
 #' This function performs the confounder blanket learner (CBL) algorithm for
 #' causal discovery.
 #'
-#' @param x Matrix or data frame of foreground variables.
-#' @param z Matrix or data frame of background variables.
+#' @param x Matrix or data frame of foreground variables. Currently only 
+#'   supports continuous or binary features.
+#' @param z Matrix or data frame of background variables. Currently only 
+#'   supports continuous or binary features.
 #' @param s Feature selection method. Includes native support for sparse linear
 #'   regression (\code{s = "lasso"}) and gradient boosting (\code{s = "boost"}).
 #'   Alternatively, a user-supplied function mapping features \code{x} and 
@@ -37,10 +39,6 @@
 #' boosting machines (\code{s = "boost"}). For statistical inference, CBL uses 
 #' complementary pairs stability selection (Shah & Samworth, 2013), which bounds
 #' the probability of errors of commission. 
-#' 
-#' If \code{x} or \code{z} are data frames, they will be converted to matrix
-#' format via \code{model.matrix} with a warning. This means categorical data 
-#' will be recoded as dummy variables. 
 #' 
 #' @return 
 #' A square, lower triangular ancestrality matrix. Call this matrix \code{m}. 
