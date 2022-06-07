@@ -84,9 +84,11 @@ set.seed(42)
 cbl(x, z)
 
 # Run CBL in parallel
+\dontrun{
 require(doMC)
 registerDoMC(2)
 cbl(x, z, parallel = TRUE)
+}
 
 # With user-supplied feature selection subroutine
 s_new <- function(x, y) {
