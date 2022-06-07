@@ -1,3 +1,9 @@
+#' CPSS utility functions
+#'
+#' These functions are taken verbatim from Rajen Shah's personal website:
+#' \url{http://www.statslab.cam.ac.uk/~rds37/papers/r_concave_tail.R}.
+#'
+#' @importFrom stats optimize uniroot
 
 r.TailProbs <- function(eta, B, r) {
   # TailProbs returns a vector with the tail probability for each \tau = ceil{B*2\eta}/B + 1/B,...,1
