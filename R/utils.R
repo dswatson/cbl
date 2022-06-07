@@ -40,6 +40,57 @@ l0 <- function(x, y, s, params, ...) {
 }
 
 
+#' Complementary pairs subsampling loop
+#' 
+#' This function executes one loop of the model quartet for a given pair of 
+#' foreground variables and records any disconnections and/or (de)activations.
+#' 
+#' @param b Subsample index.
+#' @param i First foreground variable index.
+#' @param j Second foreground variable index.
+#' @param x Matrix of foreground variables.
+#' @param z_t Intersection of iteration-t known non-descendants for foreground
+#'   variables \code{i} and \code{j}.
+#' @param s Regression method. Current options are \code{"lasso"} or
+#'   \code{"boost"}.
+#' @param params Optional list of parameters to use when \code{f = "boost"}.
+#' @param ... Extra parameters to be passed to the feature selection subroutine.
+#' 
+#' @import data.table
+
+sub_loop <- function(b, i, j, x, z_t, s, params, ...) {
+  # Prelimz
+  n <- nrow(x) 
+  d_zt <- ncol(z_t)
+  # Take complementary subsets
+  a_set <- sample(n, round(0.5 * n))
+  b_set <- seq_len(n)[-a_set]
+  # Fit reduced models
+  s0 <- sapply(c(i, j), function(k) {
+    c(l0(z_t[a_set, ], x[a_set, k], s, params, ...), 
+      l0(z_t[b_set, ], x[b_set, k], s, params, ...))
+  })
+  # Fit expanded models
+  s1 <- sapply(c(i, j), function(k) {
+    not_k <- setdiff(c(i, j), k)
+    c(l0(cbind(z_t[a_set, ], x[a_set, not_k]), x[a_set, k], s, params, ...),
+      l0(cbind(z_t[b_set, ], x[b_set, not_k]), x[b_set, k], s, params, ...))
+  })
+  # Record disconnections and (de)activations
+  dis_a <- any(s1[d_zt + 1, ] == 0)
+  dis_b <- any(s1[2 * (d_zt + 1), ] == 0)
+  dis <- rep(c(dis_a, dis_b), each = d_zt)
+  d_ji <- s0[, 1] == 1 & s1[seq_len(d_zt), 1] == 0
+  a_ji <- s0[, 2] == 0 & s1[seq_len(d_zt), 2] == 1
+  d_ij <- s0[, 2] == 1 & s1[seq_len(d_zt), 2] == 0
+  a_ij <- s0[, 1] == 0 & s1[seq_len(d_zt), 1] == 1
+  # Export
+  out <- data.table(b = rep(c(2 * b - 1, 2 * b), each = d_zt), i, j,
+                    z = rep(colnames(z_t), times = 2),
+                    dis, d_ji, a_ji, d_ij, a_ij)
+  return(out)
+}
+
 
 #' Computer the consistency lower bound
 #' 
