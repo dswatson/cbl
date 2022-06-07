@@ -87,6 +87,7 @@
 #' @export 
 #' @import data.table
 #' @import foreach
+#' @importFrom stats model.matrix
 
 cbl <- function(
   x, 
