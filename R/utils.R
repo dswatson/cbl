@@ -7,7 +7,7 @@
 #' @param y Outcome vector.
 #' @param s Regression method. Current options are \code{"lasso"} or
 #'   \code{"boost"}.
-#' @param params Optional list of parameters to use when \code{f = "boost"}.
+#' @param params Optional list of parameters to use when \code{s = "boost"}.
 #' @param ... Extra parameters to be passed to the feature selection subroutine.
 #' 
 #' @import glmnet
@@ -53,7 +53,7 @@ l0 <- function(x, y, s, params, ...) {
 #'   variables \code{i} and \code{j}.
 #' @param s Regression method. Current options are \code{"lasso"} or
 #'   \code{"boost"}.
-#' @param params Optional list of parameters to use when \code{f = "boost"}.
+#' @param params Optional list of parameters to use when \code{s = "boost"}.
 #' @param ... Extra parameters to be passed to the feature selection subroutine.
 #' 
 #' @import data.table

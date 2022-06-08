@@ -14,7 +14,7 @@ l0(x, y, s, params, ...)
 \item{s}{Regression method. Current options are \code{"lasso"} or
 \code{"boost"}.}
 
-\item{params}{Optional list of parameters to use when \code{f = "boost"}.}
+\item{params}{Optional list of parameters to use when \code{s = "boost"}.}
 
 \item{...}{Extra parameters to be passed to the feature selection subroutine.}
 }
