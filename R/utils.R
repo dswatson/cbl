@@ -100,34 +100,33 @@ sub_loop <- function(b, i, j, x, z_t, s, params, ...) {
 #' @import data.table
 #' @import foreach
 
-lb_fn <- function(df, B) {
+epsilon_fn <- function(df, B) {
   # Nullify 
   dji <- drji <- aji <- arji <- dij <- drij <- aij <- arij <- tau <- tt <-
     int_err <- ext_err <- NULL
-  # Loop through thresholds
-  lies <- function(tau) {
-    # Internal consistency
+  # Loop through thresholds in search of inconsistencies
+  err_check <- function(tau) {
+    # Inferences at this value of tau
     df[, dji := ifelse(drji >= tau, 1, 0)]
     df[, aji := ifelse(arji >= tau, 1, 0)]
     df[, dij := ifelse(drij >= tau, 1, 0)]
     df[, aij := ifelse(arij >= tau, 1, 0)]
-    df[, int_err := ifelse((dji + aji > 1) | (dij + aij > 1), 1, 0)]
-    int_err <- sum(df$int_err)
-    # External consistency
+    # Internal consistency (for a single Z)
+    df[, int_err := ifelse(dji + aji + dij + aij > 1, 1, 0)]
+    int_err <- ifelse(sum(df$int_err) > 0, 1, 0)
+    # External consistency (across multiple Z's)
     sum_ji <- df[, sum(dji + aji)]
     sum_ij <- df[, sum(dij + aij)]
     ext_err <- ifelse(min(c(sum_ji, sum_ij)) > 0, 1, 0)
     # Export
     out <- data.table('tau' = tau, 'int_err' = int_err, 'ext_err' = ext_err)
+    return(out)
   }
-  lie_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
-    lies(tt)
-  # Compute minimal thresholds
-  min_int <- lie_df[int_err == 0, min(tau)]
-  min_ext <- lie_df[ext_err == 0, min(tau)]
-  min_two <- lie_df[int_err == 0 & ext_err == 0, min(tau)] # It's always ext
-  # Export
-  return(min_two)
+  err_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
+    err_check(tt)
+  # Compute minimal thresholds, export
+  epsilon <- err_df[int_err == 0 & ext_err == 0, min(tau)]
+  return(epsilon)
 }
 
 
@@ -135,14 +134,14 @@ lb_fn <- function(df, B) {
 #' Infer causal direction using stability selection
 #' 
 #' @param df Table of (de)activation rates.
-#' @param lb Consistency lower bound, as computed by \code{lb_fn}.
+#' @param epsilon Consistency lower bound, as computed by \code{epsilon_fn}.
 #' @param order Causal order of interest, either \code{"ij"} or \code{"ji"}.
 #' @param rule Inference rule, either \code{"R1"} or \code{"R2"}.
 #' @param B Number of complementary pairs to draw for stability selection.
 #' 
 #' @import data.table
 
-ss_fn <- function(df, lb, order, rule, B) {
+ss_fn <- function(df, epsilon, order, rule, B) {
   # Nullify
   drji <- arji <- drij <- arij <- detected <- surplus <- err_bound <- NULL
   # Find the right rate
