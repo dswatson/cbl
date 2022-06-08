@@ -159,7 +159,7 @@ ss_fn <- function(df, epsilon, order, rule, B) {
   ub <- minD(theta, B) * sum(r <= theta)
   tau <- seq_len(2 * B) / (2 * B)
   # Do any features exceed the upper bound?
-  dat <- data.table(tau, err_bound = ub)[tau > lb]
+  dat <- data.table(tau, err_bound = ub)[tau >= epsilon]
   dat[, detected := sapply(seq_len(nrow(dat)), function(i) sum(r >= dat$tau[i]))]
   dat[, surplus := ifelse(detected > err_bound, 1, 0)]
   # Export
