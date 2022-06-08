@@ -1,6 +1,6 @@
 Package: cbl
 Title: Causal Discovery under a Confounder Blanket
-Version: 0.0.1.9000
+Version: 0.1
 Authors@R: 
     person("David", "Watson", , "david.s.watson11@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-9632-2159"))
