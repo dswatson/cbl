@@ -1,23 +1,25 @@
 Package: cbl
 Title: Causal Discovery under a Confounder Blanket
-Version: 0.1
+Version: 0.0.1.9000
 Authors@R: 
-    person("David", "Watson", email = "david.s.watson11@gmail.com", 
-    role = c("aut", "cre"), comment = c(ORCID = "0000-0001-9632-2159"))
-Description: Methods for learning causal relationships among a set of foreground 
-  variables X based on signals from a (potentially much larger) set of background 
-  variables Z, which are known non-descendants of X. The confounder blanket 
-  learner (CBL) uses sparse regression techniques to simultaneously perform many 
-  conditional independence tests, with complementary pairs stability selection 
-  to guarantee finite sample error control. CBL is sound and complete with 
-  respect to a so-called "lazy oracle", and works with both linear and nonlinear 
-  systems. For details, see Watson & Silva (2022) <arXiv:2205.05715>.
+    person("David", "Watson", , "david.s.watson11@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-9632-2159"))
+Description: Methods for learning causal relationships among a set of
+    foreground variables X based on signals from a (potentially much
+    larger) set of background variables Z, which are known non-descendants
+    of X. The confounder blanket learner (CBL) uses sparse regression
+    techniques to simultaneously perform many conditional independence
+    tests, with complementary pairs stability selection to guarantee
+    finite sample error control. CBL is sound and complete with respect to
+    a so-called "lazy oracle", and works with both linear and nonlinear
+    systems. For details, see Watson & Silva (2022) <arXiv:2205.05715>.
+License: GPL (>=3) 
+URL: https://github.com/dswatson/cbl
 Imports:
-  data.table,
-  foreach,
-  glmnet,
-  lightgbm
-License: GPL (>=3) + file LICENSE
+    data.table,
+    foreach,
+    glmnet,
+    lightgbm
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.0
