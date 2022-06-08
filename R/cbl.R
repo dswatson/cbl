@@ -175,11 +175,11 @@ cbl <- function(
               df[, arij := sum(a_ij) / .N, by = z]
               df <- unique(df[, .(i, j, z, disr, drji, arji, drij, arij)])
               # Consistent lower bound
-              lb <- lb_fn(df, B)
+              eps <- epsilon_fn(df, B)
               # Stable upper bound
               out <- foreach(oo = c('ji', 'ij'), .combine = rbind) %:%
                 foreach(rr = c('R1', 'R2'), .combine = rbind) %do%
-                ss_fn(df, lb, oo, rr, B)
+                ss_fn(df, eps, oo, rr, B)
               # Update adjacency matrix
               if (sum(out$decision) > 0) {
                 if (out[rule == 'R1' & order == 'ji', decision == 1]) {

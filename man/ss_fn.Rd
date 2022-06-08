@@ -4,12 +4,12 @@
 \alias{ss_fn}
 \title{Infer causal direction using stability selection}
 \usage{
-ss_fn(df, lb, order, rule, B)
+ss_fn(df, epsilon, order, rule, B)
 }
 \arguments{
 \item{df}{Table of (de)activation rates.}
 
-\item{lb}{Consistency lower bound, as computed by \code{lb_fn}.}
+\item{epsilon}{Consistency lower bound, as computed by \code{epsilon_fn}.}
 
 \item{order}{Causal order of interest, either \code{"ij"} or \code{"ji"}.}
 
