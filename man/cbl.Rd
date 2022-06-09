@@ -94,7 +94,7 @@ s_new <- function(x, y) {
   out <- ifelse(colnames(x) \%in\% keep, 1, 0)
   return(out)
 }
-\dontrun{
+\donttest{
 cbl(x, z, s = s_new)
 }
 
