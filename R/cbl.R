@@ -181,24 +181,35 @@ cbl <- function(
                 foreach(rr = c('R1', 'R2'), .combine = rbind) %do%
                 ss_fn(df, eps, oo, rr, B)
               # Update adjacency matrix
-              if (sum(out$decision) > 0) {
-                if (out[rule == 'R1' & order == 'ji', decision == 1]) {
-                  adj1[i, j] <- 1
-                  adj1[j, i] <- 0
-                } else if (out[rule == 'R1' & order == 'ij', decision == 1]) {
-                  adj1[j, i] <- 1
-                  adj1[i, j] <- 0
-                } else if (out[rule == 'R2' & order == 'ji', decision == 1]) {
-                  adj1[i, j] <- 0.5
-                  adj1[j, i] <- 0
-                } else if (out[rule == 'R2' & order == 'ij', decision == 1]) {
-                  adj1[j, i] <- 0.5
-                  adj1[i, j] <- 0
-                } 
-              }
+              if (out[rule == 'R1' & order == 'ji', decision == 1]) {
+                adj1[i, j] <- 1
+                adj1[j, i] <- 0
+              } else if (out[rule == 'R1' & order == 'ij', decision == 1]) {
+                adj1[j, i] <- 1
+                adj1[i, j] <- 0
+              } else if (out[rule == 'R2', sum(decision) == 2]) {
+                adj1[i, j] <- adj1[j, i] <- 0
+              } else if (out[rule == 'R2' & order == 'ji', decision == 1]) {
+                adj1[i, j] <- 0.5 
+              } else if (out[rule == 'R2' & order == 'ij', decision == 1]) {
+                adj1[j, i] <- 0.5
+              } 
             }
           }
         } 
+      }
+    }
+    # Check for transitivity
+    closure <- FALSE
+    while(closure == FALSE) {
+      closure <- TRUE
+      for (i in seq_len(d_x)) {
+        m <- which(adj1[, i] == 1)
+        e <- which(adj1[, m] == 1)
+        if (length(e) > 0) {
+          adj1[e, i] <- 1
+          closure <- FALSE
+        }
       }
     }
     # Iterate, check for convergence
