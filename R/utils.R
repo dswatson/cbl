@@ -115,9 +115,13 @@ epsilon_fn <- function(df, B) {
     df[, int_err := ifelse(dji + aji + dij + aij > 1, 1, 0)]
     int_err <- ifelse(sum(df$int_err) > 0, 1, 0)
     # External consistency (across multiple Z's)
-    sum_ji <- df[, sum(dji + aji)]
-    sum_ij <- df[, sum(dij + aij)]
-    ext_err <- ifelse(min(c(sum_ji, sum_ij)) > 0, 1, 0)
+    if (df[, sum(dji) > 0] & df[, sum(dij + aij) > 0]) {
+      ext_err <- 1
+    } else if (df[, sum(dij) > 0] & df[, sum(dji + aji) > 0]) {
+      ext_err <- 1
+    } else {
+      ext_err <- 0
+    }
     # Export
     out <- data.table('tau' = tau, 'int_err' = int_err, 'ext_err' = ext_err)
     return(out)
@@ -128,7 +132,6 @@ epsilon_fn <- function(df, B) {
   epsilon <- err_df[int_err == 0 & ext_err == 0, min(tau)]
   return(epsilon)
 }
-
 
 
 #' Infer causal direction using stability selection
