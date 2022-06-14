@@ -206,7 +206,7 @@ cbl <- function(
       for (i in seq_len(d_x)) {
         m <- which(adj1[, i] == 1)
         e <- which(adj1[, m] == 1)
-        if (length(e) > 0) {
+        if (length(e) > 0 & (is.na(adj1[e, i]) | adj1[e, i] != 1)) {
           adj1[e, i] <- 1
           closure <- FALSE
         }
