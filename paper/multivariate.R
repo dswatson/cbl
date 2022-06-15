@@ -153,42 +153,48 @@ l0 <- function(x, y, f, prms) {
 #' @param B Number of complementary pairs to draw for stability selection.
 
 # Compute consistency lower bound
-lb_fn <- function(df, B) {
-  # Loop through thresholds
-  lies <- function(tau) {
-    # Internal consistency
+epsilon_fn <- function(df, B) {
+  # Nullify 
+  dji <- drji <- aji <- arji <- dij <- drij <- aij <- arij <- tau <- tt <-
+    int_err <- ext_err <- NULL
+  # Loop through thresholds in search of inconsistencies
+  err_check <- function(tau) {
+    # Inferences at this value of tau
     df[, dji := ifelse(drji >= tau, 1, 0)]
     df[, aji := ifelse(arji >= tau, 1, 0)]
     df[, dij := ifelse(drij >= tau, 1, 0)]
     df[, aij := ifelse(arij >= tau, 1, 0)]
-    df[, int_err := ifelse((dji + aji > 1) | (dij + aij > 1), 1, 0)]
-    int_err <- sum(df$int_err)
-    # External consistency
-    sum_ji <- df[, sum(dji + aji)]
-    sum_ij <- df[, sum(dij + aij)]
-    ext_err <- ifelse(min(c(sum_ji, sum_ij)) > 0, 1, 0)
+    # Internal consistency (for a single Z)
+    df[, int_err := ifelse(dji + aji + dij + aij > 1, 1, 0)]
+    int_err <- ifelse(sum(df$int_err) > 0, 1, 0)
+    # External consistency (across multiple Z's)
+    if (df[, sum(dji) > 0] & df[, sum(dij + aij) > 0]) {
+      ext_err <- 1
+    } else if (df[, sum(dij) > 0] & df[, sum(dji + aji) > 0]) {
+      ext_err <- 1
+    } else {
+      ext_err <- 0
+    }
     # Export
     out <- data.table('tau' = tau, 'int_err' = int_err, 'ext_err' = ext_err)
+    return(out)
   }
-  lie_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
-    lies(tt)
-  # Compute minimal thresholds
-  min_int <- lie_df[int_err == 0, min(tau)]
-  min_ext <- lie_df[ext_err == 0, min(tau)]
-  min_two <- lie_df[int_err == 0 & ext_err == 0, min(tau)] # It's always ext
-  # Export
-  return(min_two)
+  err_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
+    err_check(tt)
+  # Compute minimal thresholds, export
+  epsilon <- err_df[int_err == 0 & ext_err == 0, min(tau)]
+  return(epsilon)
 }
 
 
 #' @param df Table of (de)activation rates.
-#' @param lb Consistency lower bound, as computed by \code{lb_fn}.
+#' @param eps Consistency lower bound, as computed by \code{epsilon_fn}.
 #' @param order Causal order of interest, either \code{"ij"} or \code{"ji"}.
 #' @param rule Inference rule, either \code{"R1"} or \code{"R2"}.
 #' @param B Number of complementary pairs to draw for stability selection.
 
 # Infer causal direction using stability selection
-ss_fn <- function(df, lb, order, rule, B) {
+ss_fn <- function(df, eps, order, rule, B) {
   # Find the right rate
   if (order == 'ji' & rule == 'R1') {
     r <- df[, drji]
@@ -205,7 +211,7 @@ ss_fn <- function(df, lb, order, rule, B) {
   tau <- seq_len(2 * B) / (2 * B)
   # Do any features exceed the upper bound?
   dat <- data.frame(tau, err_bound = ub) %>%
-    filter(tau > lb) %>%
+    filter(tau >= eps) %>%
     rowwise() %>%
     mutate(detected = sum(r >= tau)) %>% 
     ungroup(.) %>%
@@ -215,6 +221,49 @@ ss_fn <- function(df, lb, order, rule, B) {
     'order' = order, 'rule' = rule, 
     'decision' = ifelse(sum(dat$surplus) > 0, 1, 0)
   )
+  return(out)
+}
+
+#' @param b Subsample index.
+#' @param i First foreground variable index.
+#' @param j Second foreground variable index.
+#' @param x Matrix of foreground variables.
+#' @param z_t Intersection of iteration-t known non-descendants for foreground
+#'   variables \code{i} and \code{j}.
+#' @param s Regression method. 
+#' @param params Optional list of parameters to use when \code{s = "boost"}.
+
+# Complementary pairs subsampling loop
+sub_loop <- function(b, i, j, x, z_t, s, params) {
+  # Prelimz
+  n <- nrow(x) 
+  d_zt <- ncol(z_t)
+  # Take complementary subsets
+  a_set <- sample(n, round(0.5 * n))
+  b_set <- seq_len(n)[-a_set]
+  # Fit reduced models
+  s0 <- sapply(c(i, j), function(k) {
+    c(l0(z_t[a_set, ], x[a_set, k], s, params), 
+      l0(z_t[b_set, ], x[b_set, k], s, params))
+  })
+  # Fit expanded models
+  s1 <- sapply(c(i, j), function(k) {
+    not_k <- setdiff(c(i, j), k)
+    c(l0(cbind(z_t[a_set, ], x[a_set, not_k]), x[a_set, k], s, params),
+      l0(cbind(z_t[b_set, ], x[b_set, not_k]), x[b_set, k], s, params))
+  })
+  # Record disconnections and (de)activations
+  dis_a <- any(s1[d_zt + 1, ] == 0)
+  dis_b <- any(s1[2 * (d_zt + 1), ] == 0)
+  dis <- rep(c(dis_a, dis_b), each = d_zt)
+  d_ji <- s0[, 1] == 1 & s1[seq_len(d_zt), 1] == 0
+  a_ji <- s0[, 2] == 0 & s1[seq_len(d_zt), 2] == 1
+  d_ij <- s0[, 2] == 1 & s1[seq_len(d_zt), 2] == 0
+  a_ij <- s0[, 1] == 0 & s1[seq_len(d_zt), 1] == 1
+  # Export
+  out <- data.table(b = rep(c(2 * b - 1, 2 * b), each = d_zt), i, j,
+                    z = rep(colnames(z_t), times = 2),
+                    dis, d_ji, a_ji, d_ij, a_ij)
   return(out)
 }
 
@@ -251,51 +300,13 @@ cbl_fn <- function(sim_obj, gamma = 0.5, maxiter = 100, B = 50) {
   # Initialize
   adj_list <- list(
     matrix(NA_real_, nrow = d_x, ncol = d_x, 
-           dimnames = list(xlabs, xlabs))
+           dimnames = list(colnames(x), colnames(x)))
   )
+  adj0 <- adj1 <- adj_list[[1]]
   converged <- FALSE
   iter <- 0
-  ### LOOP IT ###
+  ### BIG LOOP ###
   while(converged == FALSE & iter <= maxiter) {
-    # Extract relevant adjacency matrices
-    if (iter == 0) {
-      adj0 <- adj1 <- adj_list[[1]]
-    } else {
-      adj0 <- adj_list[[iter]]
-      adj1 <- adj_list[[iter + 1]]
-    }
-    # Subsampling loop
-    sub_loop <- function(b, i, j, a1) {
-      z_t <- cbind(z, x[, a1])
-      d_zt <- ncol(z_t)
-      # Take complementary subsets
-      a_set <- sample(n, round(0.5 * n))
-      b_set <- seq_len(n)[-a_set]
-      # Fit reduced models
-      s0 <- sapply(c(i, j), function(k) {
-        c(l0(z_t[a_set, ], x[a_set, k], f, prms), 
-          l0(z_t[b_set, ], x[b_set, k], f, prms))
-      })
-      # Fit expanded models
-      s1 <- sapply(c(i, j), function(k) {
-        not_k <- setdiff(c(i, j), k)
-        c(l0(cbind(z_t[a_set, ], x[a_set, not_k]), x[a_set, k], f, prms),
-          l0(cbind(z_t[b_set, ], x[b_set, not_k]), x[b_set, k], f, prms))
-      })
-      # Record disconnections and (de)activations
-      dis_a <- any(s1[d_zt + 1, ] == 0)
-      dis_b <- any(s1[2 * (d_zt + 1), ] == 0)
-      dis <- rep(c(dis_a, dis_b), each = d_zt)
-      d_ji <- s0[, 1] == 1 & s1[seq_len(d_zt), 1] == 0
-      a_ji <- s0[, 2] == 0 & s1[seq_len(d_zt), 2] == 1
-      d_ij <- s0[, 2] == 1 & s1[seq_len(d_zt), 2] == 0
-      a_ij <- s0[, 1] == 0 & s1[seq_len(d_zt), 1] == 1
-      # Export
-      out <- data.table(b = rep(c(2 * b - 1, 2 * b), each = d_zt), i, j,
-                        z = rep(colnames(z_t), times = 2),
-                        dis, d_ji, a_ji, d_ij, a_ij)
-      return(out)
-    }
     # Pairwise test loop
     for (i in 2:d_x) {
       for (j in 1:(i - 1)) {
@@ -310,8 +321,9 @@ cbl_fn <- function(sim_obj, gamma = 0.5, maxiter = 100, B = 50) {
           # Only continue if the set of non-descendants has increased since last 
           # iteration (i.e., have we learned anything new?)
           if (iter == 0 | length(a1) > length(a0)) {
+            z_t <- cbind(z, x[, a1])
             df <- foreach(bb = seq_len(B), .combine = rbind) %do%
-              sub_loop(bb, i, j, a1)
+              sub_loop(bb, i, j, x, z_t, f, prms)
             # Compute rates
             df[, disr := sum(dis) / .N]
             if (df$disr[1] > gamma) { 
@@ -323,49 +335,58 @@ cbl_fn <- function(sim_obj, gamma = 0.5, maxiter = 100, B = 50) {
               df[, arij := sum(a_ij) / .N, by = z]
               df <- unique(df[, .(i, j, z, disr, drji, arji, drij, arij)])
               # Consistent lower bound
-              lb <- lb_fn(df, B)
+              eps <- epsilon_fn(df, B)
               # Stable upper bound
               out <- foreach(oo = c('ji', 'ij'), .combine = rbind) %:%
                 foreach(rr = c('R1', 'R2'), .combine = rbind) %do%
-                ss_fn(df, lb, oo, rr, B)
+                ss_fn(df, eps, oo, rr, B)
               # Update adjacency matrix
-              if (sum(out$decision) == 1) {
-                if (out[decision == 1, order == 'ji' & rule == 'R1']) {
-                  adj1[i, j] <- 1
-                  adj1[j, i] <- 0
-                } else if (out[decision == 1, order == 'ji' & rule == 'R2']) {
-                  adj1[i, j] <- 0.5
-                  adj1[j, i] <- 0
-                } else if (out[decision == 1, order == 'ij' & rule == 'R1']) {
-                  adj1[j, i] <- 1
-                  adj1[i, j] <- 0
-                } else if (out[decision == 1, order == 'ij' & rule == 'R2']) {
-                  adj1[j, i] <- 0.5
-                  adj1[i, j] <- 0
-                }
-              } else if (sum(out$decision == 2)) {
-                if (out[order == 'ji', sum(decision) == 2]) {
-                  adj1[i, j] <- 0.5
-                } else if (out[order == 'ij', sum(decision) == 2]) {
-                  adj1[j, i] <- 0.5
-                }
-              }
+              if (out[rule == 'R1' & order == 'ji', decision == 1]) {
+                adj1[i, j] <- 1
+                adj1[j, i] <- 0
+              } else if (out[rule == 'R1' & order == 'ij', decision == 1]) {
+                adj1[j, i] <- 1
+                adj1[i, j] <- 0
+              } else if (out[rule == 'R2', sum(decision) == 2]) {
+                adj1[i, j] <- adj1[j, i] <- 0
+              } else if (out[rule == 'R2' & order == 'ji', decision == 1]) {
+                adj1[i, j] <- 0.5 
+              } else if (out[rule == 'R2' & order == 'ij', decision == 1]) {
+                adj1[j, i] <- 0.5
+              } 
             }
           }
         } 
       }
     }
-    # Store that iteration's adjacency matrix
+    # Check for transitivity
+    closure <- FALSE
+    while(closure == FALSE) {
+      closure <- TRUE
+      for (i in seq_len(d_x)) {
+        m <- which(adj1[, i] == 1)
+        e <- which(adj1[, m] == 1)
+        if (length(e) > 0) {
+          if (is.na(adj1[e, i]) | adj1[e, i] != 1) {
+            adj1[e, i] <- 1
+            closure <- FALSE
+          }
+        }
+      }
+    }
+    # Iterate, check for convergence
     iter <- iter + 1
-    adj_list <- append(adj_list, list(adj1))
-    # Check for convergence
     if (identical(adj0, adj1)) {
       converged <- TRUE
+    } else {
+      adj_list <- append(adj_list, list(adj1))
+      adj0 <- adj_list[[iter]]
+      adj1 <- adj_list[[iter + 1]]
+      adj_list[[iter]] <- 0
     }
   }
   # Export final adjacency matrix
-  adj_mat <- adj_list[[length(adj_list)]]
-  return(adj_mat)
+  return(adj1)
 }
 
 ################################################################################
@@ -468,10 +489,6 @@ foreach(nn = c(500, 1000, 2000, 4000, 8000)) %:%
   foreach(ss = c(1/4, 3/4)) %:%
   foreach(ii = 1:20) %dopar%
   big_loop(nn, dd, ss, ii)
-
-foreach(iii = rel_grd[missing == TRUE, ii]) %dopar%
-  big_loop(rel_grd[ii == iii, n], rel_grd[ii == iii, d_z], 
-           rel_grd[ii == iii, sp], rel_grd[ii == iii, idx])
 
 
 # RFCI loop computed separately

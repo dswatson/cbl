@@ -1,8 +1,5 @@
-# Set working directory
-setwd('~/Documents/UCL/many_ancestors')
-
 # Load libraries and Shah's code, register cores
-source('./paper/src/shah_ss.R')
+source('shah_ss.R')
 library(data.table)
 library(trigger)
 library(glmnet)
@@ -11,6 +8,8 @@ library(tidyverse)
 library(doMC)
 registerDoMC(8)
 
+# Set seed
+set.seed(123, kind = "L'Ecuyer-CMRG")
 
 #' @param x Design matrix.
 #' @param y Outcome vector.
@@ -46,32 +45,38 @@ l0 <- function(x, y, trn, tst, f) {
 #' @param df Table of (de)activation rates.
 #' @param B Number of complementary pairs to draw for stability selection.
 
-# Compute consistency lower bound
-lb_fn <- function(df, B) {
-  # Loop through thresholds
-  lies <- function(tau) {
-    # Internal consistency
+# Compute consistent lower bound
+epsilon_fn <- function(df, B) {
+  # Nullify 
+  dji <- drji <- aji <- arji <- dij <- drij <- aij <- arij <- tau <- tt <-
+    int_err <- ext_err <- NULL
+  # Loop through thresholds in search of inconsistencies
+  err_check <- function(tau) {
+    # Inferences at this value of tau
     df[, dji := ifelse(drji >= tau, 1, 0)]
     df[, aji := ifelse(arji >= tau, 1, 0)]
     df[, dij := ifelse(drij >= tau, 1, 0)]
     df[, aij := ifelse(arij >= tau, 1, 0)]
-    df[, int_err := ifelse((dji + aji > 1) | (dij + aij > 1), 1, 0)]
-    int_err <- sum(df$int_err)
-    # External consistency
-    sum_ji <- df[, sum(dji + aji)]
-    sum_ij <- df[, sum(dij + aij)]
-    ext_err <- ifelse(min(c(sum_ji, sum_ij)) > 0, 1, 0)
+    # Internal consistency (for a single Z)
+    df[, int_err := ifelse(dji + aji + dij + aij > 1, 1, 0)]
+    int_err <- ifelse(sum(df$int_err) > 0, 1, 0)
+    # External consistency (across multiple Z's)
+    if (df[, sum(dji) > 0] & df[, sum(dij + aij) > 0]) {
+      ext_err <- 1
+    } else if (df[, sum(dij) > 0] & df[, sum(dji + aji) > 0]) {
+      ext_err <- 1
+    } else {
+      ext_err <- 0
+    }
     # Export
     out <- data.table('tau' = tau, 'int_err' = int_err, 'ext_err' = ext_err)
+    return(out)
   }
-  lie_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
-    lies(tt)
-  # Compute minimal thresholds
-  min_int <- lie_df[int_err == 0, min(tau)]
-  min_ext <- lie_df[ext_err == 0, min(tau)]
-  min_two <- lie_df[int_err == 0 & ext_err == 0, min(tau)] # It's always ext
-  # Export
-  return(min_two)
+  err_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
+    err_check(tt)
+  # Compute minimal thresholds, export
+  epsilon <- err_df[int_err == 0 & ext_err == 0, min(tau)]
+  return(epsilon)
 }
 
 
@@ -99,7 +104,7 @@ ss_fn <- function(df, lb, order, rule, B) {
   tau <- seq_len(2 * B) / (2 * B)
   # Do any features exceed the upper bound?
   dat <- data.frame(tau, err_bound = ub) %>%
-    filter(tau > lb) %>%
+    filter(tau >= lb) %>%
     rowwise() %>%
     mutate(detected = sum(r >= tau)) %>% 
     ungroup(.) %>%
@@ -218,7 +223,7 @@ subdag <- function(z, x, z.pos, x.pos, f, gamma = 0.5, maxiter = Inf, B = 50) {
             
             # Compute rates
             df[, disr := sum(dis) / .N]
-            if (df$disr[1] >= gamma) { # Totally arbitrary threshold?
+            if (df$disr[1] >= gamma) { 
               adj1[i, j] <- adj1[j, i] <- 0
             } else {
               df[, drji := sum(d_ji) / .N, by = z]
@@ -227,32 +232,43 @@ subdag <- function(z, x, z.pos, x.pos, f, gamma = 0.5, maxiter = Inf, B = 50) {
               df[, arij := sum(a_ij) / .N, by = z]
               df <- unique(df[, .(i, j, z, disr, drji, arji, drij, arij)])
               # Consistent lower bound
-              lb <- lb_fn(df, B)
+              lb <- epsilon_fn(df, B)
               # Stable upper bound
               out <- foreach(oo = c('ji', 'ij'), .combine = rbind) %:%
                 foreach(rr = c('R1', 'R2'), .combine = rbind) %do%
                 ss_fn(df, lb, oo, rr, B)
               # Update adjacency matrix
-              if (sum(out$decision) == 1) {
-                if (out[decision == 1, order == 'ji' & rule == 'R1']) {
-                  adj1[i, j] <- 1
-                } else if (out[decision == 1, order == 'ji' & rule == 'R2']) {
-                  adj1[i, j] <- 0.5
-                } else if (out[decision == 1, order == 'ij' & rule == 'R1']) {
-                  adj1[j, i] <- 1
-                } else if (out[decision == 1, order == 'ij' & rule == 'R2']) {
-                  adj1[j, i] <- 0.5
-                }
-              } else if (sum(out$decision == 2)) {
-                if (out[order == 'ji', sum(decision) == 2]) {
-                  adj1[i, j] <- 0.5
-                } else if (out[order == 'ij', sum(decision) == 2]) {
-                  adj1[j, i] <- 0.5
-                }
-              }
+              if (out[rule == 'R1' & order == 'ji', decision == 1]) {
+                adj1[i, j] <- 1
+                adj1[j, i] <- 0
+              } else if (out[rule == 'R1' & order == 'ij', decision == 1]) {
+                adj1[j, i] <- 1
+                adj1[i, j] <- 0
+              } else if (out[rule == 'R2', sum(decision) == 2]) {
+                adj1[i, j] <- adj1[j, i] <- 0
+              } else if (out[rule == 'R2' & order == 'ji', decision == 1]) {
+                adj1[i, j] <- 0.5 
+              } else if (out[rule == 'R2' & order == 'ij', decision == 1]) {
+                adj1[j, i] <- 0.5
+              } 
             }
           }
         } 
+      }
+    }
+    # Check for transitivity
+    closure <- FALSE
+    while(closure == FALSE) {
+      closure <- TRUE
+      for (i in seq_len(d_x)) {
+        m <- which(adj1[, i] == 1)
+        e <- which(adj1[, m] == 1)
+        if (length(e) > 0) {
+          if (is.na(adj1[e, i]) | adj1[e, i] != 1) {
+            adj1[e, i] <- 1
+            closure <- FALSE
+          }
+        }
       }
     }
     # Store that iteration's adjacency matrix
@@ -285,8 +301,7 @@ z.pos <- as.data.table(yeast$marker.pos)
 colnames(z.pos) <- c('chr', 'pos')
 z.pos[, idx := .I]
 
-# Weirdly, there's some inconsistent naming in the data
-# So YJR008W = MHO1
+# Weirdly, there's some inconsistent naming in the data, so YJR008W = MHO1
 sub_g <- c('CHO1', 'ITR1', 'YJR008W', 'OPI3', 'OPT1', 'THI7')
 x_try <- x[, sub_g]
 a_mat <- subdag(z, x_try, z.pos, x.pos, 

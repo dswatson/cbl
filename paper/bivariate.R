@@ -209,49 +209,53 @@ rate_fn <- function(z, x, y, linear, B) {
 }
 
 
-#' @param res Results object output by \code{rate_fn}.
+#' @param df Results object output by \code{rate_fn}.
 #' @param B Number of complementary pairs to draw for stability selection.
-#' 
 
 # Compute consistency lower bound
-lb_fn <- function(res, B) {
-  # Subset the data
-  df <- na.omit(res[, .(z, drxy, arxy, dryx, aryx)])
-  # Loop through thresholds
-  lies <- function(tau) {
-    # Internal consistency
-    df[, dxy := ifelse(drxy >= tau, 1, 0)]
-    df[, axy := ifelse(arxy >= tau, 1, 0)]
-    df[, dyx := ifelse(dryx >= tau, 1, 0)]
-    df[, ayx := ifelse(aryx >= tau, 1, 0)]
-    df[, int_err := ifelse((dxy + axy > 1) | (dyx + ayx > 1), 1, 0)]
-    int_err <- sum(df$int_err)
-    # External consistency
-    sum_xy <- df[, sum(dxy + axy)]
-    sum_yx <- df[, sum(dyx + ayx)]
-    ext_err <- ifelse(min(c(sum_xy, sum_yx)) > 0, 1, 0)
+epsilon_fn <- function(df, B) {
+  # Nullify 
+  dji <- drji <- aji <- arji <- dij <- drij <- aij <- arij <- tau <- tt <-
+    int_err <- ext_err <- NULL
+  # Loop through thresholds in search of inconsistencies
+  err_check <- function(tau) {
+    # Inferences at this value of tau
+    df[, dji := ifelse(drji >= tau, 1, 0)]
+    df[, aji := ifelse(arji >= tau, 1, 0)]
+    df[, dij := ifelse(drij >= tau, 1, 0)]
+    df[, aij := ifelse(arij >= tau, 1, 0)]
+    # Internal consistency (for a single Z)
+    df[, int_err := ifelse(dji + aji + dij + aij > 1, 1, 0)]
+    int_err <- ifelse(sum(df$int_err) > 0, 1, 0)
+    # External consistency (across multiple Z's)
+    if (df[, sum(dji) > 0] & df[, sum(dij + aij) > 0]) {
+      ext_err <- 1
+    } else if (df[, sum(dij) > 0] & df[, sum(dji + aji) > 0]) {
+      ext_err <- 1
+    } else {
+      ext_err <- 0
+    }
     # Export
     out <- data.table('tau' = tau, 'int_err' = int_err, 'ext_err' = ext_err)
+    return(out)
   }
-  lie_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
-    lies(tt)
-  # Compute minimal thresholds
-  min_int <- lie_df[int_err == 0, min(tau)]
-  min_ext <- lie_df[ext_err == 0, min(tau)]
-  min_two <- lie_df[int_err == 0 & ext_err == 0, min(tau)] # It's always ext
-  return(min_two)
+  err_df <- foreach(tt = seq_len(2 * B) / (2 * B), .combine = rbind) %do% 
+    err_check(tt)
+  # Compute minimal thresholds, export
+  epsilon <- err_df[int_err == 0 & ext_err == 0, min(tau)]
+  return(epsilon)
 }
 
 
 #' @param res Results object output by \code{rate_fn}.
-#' @param lb Lower bound output by \code{lb_fn}.
+#' @param eps Lower bound output by \code{epsilon_fn}.
 #' @param order Assume X \preceq Y or Y \preceq X?
 #' @param rule Detect via deactivation (\code{"R1"}) or activation (\code{"R2"})?
 #' @param B Number of complementary pairs to draw for stability selection.
 #' 
 
 # Infer causal direction using stability selection
-ss_fn <- function(res, lb, order, rule, B) {
+ss_fn <- function(res, eps, order, rule, B) {
   # Subset the data
   if (order == 'xy' & rule == 'R1') {
     r <- res$drxy 
@@ -272,7 +276,7 @@ ss_fn <- function(res, lb, order, rule, B) {
     tau <- seq_len(2 * B) / (2 * B)
     # Do any features exceed the upper bound?
     dat <- data.frame(tau, err_bound = ub) %>%
-      filter(tau > lb) %>%
+      filter(tau >= eps) %>%
       rowwise() %>%
       mutate(detected = sum(r >= tau)) %>% 
       ungroup() %>%
@@ -303,13 +307,15 @@ cbl_fn <- function(z, x, y, linear, gamma) {
     decision <- 'ci'
   } else {
     # (De)activation rates
-    lb <- lb_fn(res, B = 50)
+    eps <- epsilon_fn(res, B = 50)
     sum_tbl <- foreach(oo = c('xy', 'yx'), .combine = rbind) %:%
       foreach(rr = c('R1', 'R2'), .combine = rbind) %do%
-      ss_fn(res, lb, oo, rr, B = 50)
-    if (sum_tbl[order == 'xy', sum(decision)] > 0) {
+      ss_fn(res, eps, oo, rr, B = 50)
+    if (sum_tbl[rule == 'R2', sum(decision) == 2]) {
+      decision <- 'ci'
+    } else if (sum_tbl[order == 'xy', sum(decision) > 0]) {
       decision <- 'xy'
-    } else if (sum_tbl[order == 'yx', sum(decision)] > 0) {
+    } else if (sum_tbl[order == 'yx', sum(decision) > 0]) {
       decision <- 'yx'
     } else {
       decision <- 'na'
