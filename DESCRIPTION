@@ -13,7 +13,7 @@ Description: Methods for learning causal relationships among a set of
     finite sample error control. CBL is sound and complete with respect to
     a so-called "lazy oracle", and works with both linear and nonlinear
     systems. For details, see Watson & Silva (2022) <arXiv:2205.05715>.
-License: GPL (>=3) 
+License: GPL (>=3) + file LICENSE
 URL: https://github.com/dswatson/cbl
 Imports:
     data.table,
