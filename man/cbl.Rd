@@ -78,7 +78,7 @@ x <- bipartite$x
 z <- bipartite$z
 
 # Set seed
-set.seed(42)
+set.seed(123)
 
 # Run CBL
 cbl(x, z)
