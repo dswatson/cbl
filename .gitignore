@@ -45,3 +45,5 @@ vignettes/*.pdf
 *.pptx
 paper/other
 paper/res
+paper/UAI2022/
+paper/cbl_arxiv/
