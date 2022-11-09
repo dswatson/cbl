@@ -1,6 +1,6 @@
 Package: cbl
 Title: Causal Discovery under a Confounder Blanket
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: 
     person("David", "Watson", , "david.s.watson11@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-9632-2159"))
@@ -19,7 +19,8 @@ Imports:
     data.table,
     foreach,
     glmnet,
-    lightgbm
+    lightgbm,
+    doRNG
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.0
+RoxygenNote: 7.2.1
