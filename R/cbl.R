@@ -85,7 +85,6 @@
 #' @import data.table
 #' @import foreach
 #' @importFrom stats model.matrix
-#' @importFrom doRNG %dorng%
 
 cbl <- function(
   x, 
@@ -159,7 +158,7 @@ cbl <- function(
           if (iter == 0 | length(a1) > length(a0)) {
             z_t <- cbind(z, x[, a1])
             if (parallel == TRUE) {
-              df <- foreach(bb = seq_len(B), .combine = rbind) %dorng%
+              df <- foreach(bb = seq_len(B), .combine = rbind) %dopar%
                 sub_loop(bb, i, j, x, z_t, s, params, ...)
             } else {
               df <- foreach(bb = seq_len(B), .combine = rbind) %do%
